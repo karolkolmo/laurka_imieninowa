@@ -1,0 +1,277 @@
+import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
+from matplotlib.patches import FancyBboxPatch, Circle, Ellipse, Polygon, Wedge, PathPatch, Rectangle, Arc
+from matplotlib.path import Path
+import matplotlib.image as mpimg
+from PIL import Image
+import numpy as np
+
+# Create figure - even taller with more bottom margin
+fig = plt.figure(figsize=(14, 22), facecolor='#0a0514')
+fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+ax = fig.add_axes([0, 0, 1, 1])
+ax.set_xlim(0, 14)
+ax.set_ylim(0, 22)
+ax.axis('off')
+ax.set_facecolor('#0a0514')
+
+# Deep luxury gradient background
+h, w = 2200, 1400
+bg = np.zeros((h, w, 4))
+for y in range(h):
+    for x in range(w):
+        ratio_y = y / h
+        ratio_x = abs(x - w/2) / (w/2)
+        r = int(10 * (1-ratio_y) + 50 * ratio_y + 20 * ratio_x)
+        g = int(8 * (1-ratio_y) + 15 * ratio_y + 10 * ratio_x)
+        b = int(30 * (1-ratio_y) + 25 * ratio_y + 40 * ratio_x)
+        bg[y, x] = [r/255, g/255, b/255, 1]
+ax.imshow(bg, extent=[0, 14, 0, 22], aspect='auto', zorder=0)
+
+# Golden light rays from top center
+for i in range(30):
+    angle = np.radians(-70 + i * 4.8)
+    x_end = 7 + 20 * np.sin(angle)
+    y_end = 22 - 20 * np.cos(angle)
+    for thickness in range(25, 0, -1):
+        alpha = 0.04 * (thickness / 25)
+        ax.plot([7, x_end], [22, y_end], color=(1, 0.84, 0), alpha=alpha, linewidth=thickness, zorder=1)
+
+# Load and place Bugatti image
+bugatti_img = Image.open('/mnt/agents/images/2_2022_Bugatti_Chiron_Super_Sport_side.png').convert('RGBA')
+img_w, img_h = bugatti_img.size
+scale = 2.0
+new_w = int(img_w * scale)
+new_h = int(img_h * scale)
+bugatti_large = bugatti_img.resize((new_w, new_h), Image.LANCZOS)
+bugatti_array = np.array(bugatti_large)
+
+img_x = 7
+img_y = 8.5
+img_width = new_w / 140
+img_height = new_h / 200
+
+# Add glow behind car
+glow = Circle((7, img_y + img_height/2), img_width * 0.8, facecolor=(0.2, 0.3, 0.6, 0.3), edgecolor='none', zorder=2)
+ax.add_patch(glow)
+glow2 = Circle((7, img_y + img_height/2), img_width * 0.6, facecolor=(0.3, 0.4, 0.7, 0.2), edgecolor='none', zorder=2)
+ax.add_patch(glow2)
+
+# Show car image
+ax.imshow(bugatti_array, extent=[7-img_width/2, 7+img_width/2, img_y, img_y+img_height], aspect='auto', zorder=3)
+
+# Reflection effect below car
+reflection = np.array(bugatti_large.transpose(Image.FLIP_TOP_BOTTOM))
+for y in range(reflection.shape[0]):
+    alpha_factor = 1 - (y / reflection.shape[0]) * 0.9
+    reflection[y, :, 3] = (reflection[y, :, 3] * alpha_factor * 0.25).astype(np.uint8)
+ax.imshow(reflection, extent=[7-img_width/2, 7+img_width/2, img_y-img_height*0.8, img_y], aspect='auto', zorder=3, alpha=0.6)
+
+# Rich golden ornamental border
+border_margin = 0.5
+outer_rect = FancyBboxPatch((border_margin, border_margin), 14-2*border_margin, 22-2*border_margin,
+                           boxstyle="round,pad=0.2", facecolor='none', edgecolor=(0.83, 0.69, 0.22), linewidth=6, zorder=10)
+ax.add_patch(outer_rect)
+inner_rect = FancyBboxPatch((border_margin+0.3, border_margin+0.3), 14-2*border_margin-0.6, 22-2*border_margin-0.6,
+                             boxstyle="round,pad=0.15", facecolor='none', edgecolor=(1, 0.84, 0), linewidth=2, linestyle='--', zorder=10)
+ax.add_patch(inner_rect)
+
+# Corner diamonds with gold
+corner_size = 0.6
+corners = [(border_margin, border_margin), (14-border_margin, border_margin), 
+           (border_margin, 22-border_margin), (14-border_margin, 22-border_margin)]
+for cx, cy in corners:
+    dx = 1 if cx < 7 else -1
+    dy = 1 if cy < 11 else -1
+    diamond = Polygon([(cx, cy-corner_size*dy), (cx+corner_size*dx, cy), 
+                      (cx, cy+corner_size*dy), (cx-corner_size*dx, cy)],
+                     facecolor=(1, 0.84, 0, 0.7), edgecolor=(1, 0.84, 0, 1), linewidth=3, zorder=11)
+    ax.add_patch(diamond)
+    inner_diamond = Polygon([(cx, cy-corner_size*0.5*dy), (cx+corner_size*0.5*dx, cy), 
+                               (cx, cy+corner_size*0.5*dy), (cx-corner_size*0.5*dx, cy)],
+                              facecolor=(0.8, 0.6, 0.1, 0.9), edgecolor=(1, 1, 1, 0.5), linewidth=1, zorder=12)
+    ax.add_patch(inner_diamond)
+
+# Rich flower drawing functions
+def draw_luxury_flower(ax, x, y, size, petal_color, center_color=(0.55, 0.27, 0.07), petals=8, zorder=20):
+    for i in range(petals):
+        angle = 2 * np.pi * i / petals
+        px = x + size * 0.5 * np.cos(angle)
+        py = y + size * 0.5 * np.sin(angle)
+        ellipse = Ellipse((px, py), size*0.7, size*0.35, angle=np.degrees(angle), 
+                          facecolor=petal_color, edgecolor=(0.6, 0.2, 0.2), linewidth=0.5, alpha=0.85, zorder=zorder)
+        ax.add_patch(ellipse)
+    center = Circle((x, y), size*0.2, facecolor=center_color, edgecolor=(0.3, 0.15, 0.05), linewidth=0.5, zorder=zorder+1)
+    ax.add_patch(center)
+    highlight = Circle((x-size*0.05, y+size*0.05), size*0.08, facecolor=(1, 0.9, 0.5, 0.6), edgecolor='none', zorder=zorder+2)
+    ax.add_patch(highlight)
+
+def draw_gold_leaf(ax, x, y, size, angle, zorder=19):
+    rad = np.radians(angle)
+    dx = size * np.cos(rad)
+    dy = size * np.sin(rad)
+    perp_x = -dy * 0.4
+    perp_y = dx * 0.4
+    verts = [(x, y), (x + dx*0.5 + perp_x, y + dy*0.5 + perp_y), (x + dx, y + dy), 
+             (x + dx*0.5 - perp_x, y + dy*0.5 - perp_y), (x, y)]
+    codes = [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CLOSEPOLY]
+    leaf = PathPatch(Path(verts, codes), facecolor=(0.85, 0.65, 0.13, 0.7), edgecolor=(0.7, 0.5, 0.1), 
+                     linewidth=1, zorder=zorder)
+    ax.add_patch(leaf)
+    ax.plot([x, x+dx], [y, y+dy], color=(0.9, 0.75, 0.2), linewidth=0.8, alpha=0.8, zorder=zorder+1)
+
+# Generate rich flower clusters
+np.random.seed(123)
+flower_colors = [(0.86, 0.08, 0.24, 0.75), (1.0, 0.41, 0.71, 0.7), (0.78, 0.08, 0.52, 0.72), (0.9, 0.1, 0.4, 0.68)]
+
+# Top left cluster
+for i in range(30):
+    x = np.random.uniform(0.3, 3.5)
+    y = np.random.uniform(18.5, 21.5)
+    sz = np.random.uniform(0.15, 0.45)
+    col = flower_colors[i % len(flower_colors)]
+    draw_luxury_flower(ax, x, y, sz, col, zorder=20+i)
+    if i % 2 == 0:
+        draw_gold_leaf(ax, x + np.random.uniform(-0.4, 0.4), y + np.random.uniform(-0.4, 0.4), 
+                      np.random.uniform(0.3, 0.6), np.random.uniform(0, 360), zorder=19)
+
+# Top right cluster
+for i in range(30):
+    x = np.random.uniform(10.5, 13.7)
+    y = np.random.uniform(18.5, 21.5)
+    sz = np.random.uniform(0.15, 0.45)
+    col = flower_colors[i % len(flower_colors)]
+    draw_luxury_flower(ax, x, y, sz, col, zorder=20+i)
+    if i % 2 == 0:
+        draw_gold_leaf(ax, x + np.random.uniform(-0.4, 0.4), y + np.random.uniform(-0.4, 0.4), 
+                      np.random.uniform(0.3, 0.6), np.random.uniform(0, 360), zorder=19)
+
+# Bottom left cluster
+for i in range(30):
+    x = np.random.uniform(0.3, 3.5)
+    y = np.random.uniform(0.5, 3.5)
+    sz = np.random.uniform(0.15, 0.45)
+    col = flower_colors[i % len(flower_colors)]
+    draw_luxury_flower(ax, x, y, sz, col, zorder=20+i)
+    if i % 2 == 0:
+        draw_gold_leaf(ax, x + np.random.uniform(-0.4, 0.4), y + np.random.uniform(-0.4, 0.4), 
+                      np.random.uniform(0.3, 0.6), np.random.uniform(0, 360), zorder=19)
+
+# Bottom right cluster
+for i in range(30):
+    x = np.random.uniform(10.5, 13.7)
+    y = np.random.uniform(0.5, 3.5)
+    sz = np.random.uniform(0.15, 0.45)
+    col = flower_colors[i % len(flower_colors)]
+    draw_luxury_flower(ax, x, y, sz, col, zorder=20+i)
+    if i % 2 == 0:
+        draw_gold_leaf(ax, x + np.random.uniform(-0.4, 0.4), y + np.random.uniform(-0.4, 0.4), 
+                      np.random.uniform(0.3, 0.6), np.random.uniform(0, 360), zorder=19)
+
+# Side clusters
+for side_x in [1.2, 12.8]:
+    for i in range(20):
+        y = np.random.uniform(6, 16)
+        sz = np.random.uniform(0.12, 0.35)
+        col = flower_colors[i % len(flower_colors)]
+        draw_luxury_flower(ax, side_x + np.random.uniform(-0.8, 0.8), y, sz, col, zorder=20+i)
+
+# Golden crown above title
+crown_x, crown_y = 7, 20.3
+crown_points = np.array([
+    [crown_x - 1.0, crown_y + 0.3],
+    [crown_x - 0.7, crown_y - 0.4],
+    [crown_x - 0.3, crown_y + 0.1],
+    [crown_x, crown_y - 0.5],
+    [crown_x + 0.3, crown_y + 0.1],
+    [crown_x + 0.7, crown_y - 0.4],
+    [crown_x + 1.0, crown_y + 0.3],
+    [crown_x + 0.7, crown_y + 0.5],
+    [crown_x - 0.7, crown_y + 0.5]
+])
+crown = Polygon(crown_points, facecolor=(1, 0.84, 0, 0.85), edgecolor=(1, 1, 0.8, 0.9), linewidth=3, zorder=50)
+ax.add_patch(crown)
+jewel_positions = [(crown_x-0.6, crown_y+0.15), (crown_x, crown_y-0.15), (crown_x+0.6, crown_y+0.15)]
+for jx, jy in jewel_positions:
+    jewel = Circle((jx, jy), 0.12, facecolor=(0.8, 0.1, 0.2), edgecolor=(1, 0.8, 0), linewidth=2, zorder=51)
+    ax.add_patch(jewel)
+    jewel_shine = Circle((jx-0.03, jy+0.03), 0.04, facecolor=(1, 1, 1, 0.8), edgecolor='none', zorder=52)
+    ax.add_patch(jewel_shine)
+
+# Floating petals everywhere
+for _ in range(80):
+    px = np.random.uniform(0, 14)
+    py = np.random.uniform(0, 22)
+    sz = np.random.uniform(0.05, 0.15)
+    col = flower_colors[np.random.randint(0, len(flower_colors))]
+    angle = np.random.uniform(0, 360)
+    ellipse = Ellipse((px, py), sz, sz*0.6, angle=angle, facecolor=col, edgecolor='none', alpha=0.5, zorder=5)
+    ax.add_patch(ellipse)
+
+# Golden sparkles/stars
+for _ in range(100):
+    sx = np.random.uniform(0, 14)
+    sy = np.random.uniform(0, 22)
+    sz = np.random.uniform(0.02, 0.06)
+    alpha = np.random.uniform(0.3, 0.9)
+    star = Circle((sx, sy), sz, facecolor=(1, 0.84, 0, alpha), edgecolor='none', zorder=6)
+    ax.add_patch(star)
+
+# TEXT - BIGGER TITLE with UNDERLINE
+# Title - very prominent with underline
+ax.text(7, 19.0, 'Dla Cesarzowej Małgorzaty', fontsize=48, ha='center', va='center', 
+        color='#FFD700', fontweight='bold', fontfamily='serif', zorder=100,
+        path_effects=[pe.withStroke(linewidth=5, foreground='#8B4513', alpha=0.9),
+                      pe.withStroke(linewidth=10, foreground='#000000', alpha=0.6)])
+
+# Underline for title - thick golden line
+ax.plot([3.5, 10.5], [18.35, 18.35], color='#FFD700', linewidth=5, zorder=101, alpha=0.9)
+ax.plot([4.0, 10.0], [18.2, 18.2], color='#D4A5A5', linewidth=2, zorder=101, alpha=0.7)
+
+# Subtitle
+ax.text(7, 17.5, 'z okazji święta', fontsize=26, ha='center', va='center', 
+        color='#FFDAB9', fontfamily='serif', style='italic', zorder=100,
+        path_effects=[pe.withStroke(linewidth=2, foreground='#8B4513', alpha=0.6)])
+ax.text(7, 16.8, 'Partnera Karmicznego Antoniego', fontsize=26, ha='center', va='center', 
+        color='#FFDAB9', fontfamily='serif', style='italic', zorder=100,
+        path_effects=[pe.withStroke(linewidth=2, foreground='#8B4513', alpha=0.6)])
+
+# Decorative golden line
+ax.plot([4, 10], [16.2, 16.2], color='#D4A5A5', linewidth=3, zorder=100, alpha=0.8)
+ax.plot([4.5, 9.5], [16.0, 16.0], color='#FFD700', linewidth=1.5, zorder=100, alpha=0.6, linestyle='--')
+
+# Main wishes - below car, well above bottom
+ax.text(7, 5.0, 'Szczęścia, zdrowia i radości', fontsize=34, ha='center', va='center', 
+        color='#FFD700', fontweight='bold', fontfamily='serif', zorder=100,
+        path_effects=[pe.withStroke(linewidth=4, foreground='#8B0000', alpha=0.7),
+                      pe.withStroke(linewidth=8, foreground='#000000', alpha=0.4)])
+
+ax.text(7, 4.0, 'i dużo miłości', fontsize=34, ha='center', va='center', 
+        color='#FF69B4', fontweight='bold', fontfamily='serif', zorder=100,
+        path_effects=[pe.withStroke(linewidth=4, foreground='#8B0000', alpha=0.7),
+                      pe.withStroke(linewidth=8, foreground='#000000', alpha=0.4)])
+
+# Signature - moved higher, bigger, with underline to ensure it's not cut
+ax.text(7, 2.5, 'od Salomona XV', fontsize=32, ha='center', va='center', 
+        color='#FFDAB9', fontfamily='serif', style='italic', zorder=100,
+        path_effects=[pe.withStroke(linewidth=2, foreground='#8B4513', alpha=0.6),
+                      pe.withStroke(linewidth=5, foreground='#000000', alpha=0.4)])
+
+# Underline for signature too
+ax.plot([5.0, 9.0], [2.05, 2.05], color='#FFD700', linewidth=2, zorder=101, alpha=0.7)
+
+# Hearts around wishes
+heart_positions = [(3.5, 5.0), (10.5, 5.0), (3.8, 4.0), (10.2, 4.0), (2.5, 17.5), (11.5, 17.5)]
+for hx, hy in heart_positions:
+    t = np.linspace(0, 2*np.pi, 100)
+    x_h = hx + 0.25 * (16 * np.sin(t)**3) / 16
+    y_h = hy + 0.25 * (13 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)) / 16
+    ax.fill(x_h, y_h, color='#DC143C', alpha=0.7, zorder=99)
+    ax.plot(x_h, y_h, color='#FFD700', linewidth=1.5, alpha=0.8, zorder=100)
+
+# Save with extra padding to ensure nothing is cut
+output_path = '/mnt/agents/output/laurka_bugatti_cesarzowa_v4.png'
+plt.savefig(output_path, dpi=200, bbox_inches='tight', 
+            facecolor='#0a0514', edgecolor='none', pad_inches=0.5)
+plt.show()
+print("Poprawiona laurka v4 z podkreśleniem zapisana!")
